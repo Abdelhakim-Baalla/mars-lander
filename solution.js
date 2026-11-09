@@ -1,63 +1,74 @@
-var inputs = readline().split(' ');
-const surfaceN = parseInt(inputs[0]);
-let flatX1 = 0, flatX2 = 0, flatY = 0;
-let prevX = -1, prevY = -1;
-
+const surfaceN = parseInt(readline());
+const pts = [];
 for (let i = 0; i < surfaceN; i++) {
-    var inputs = readline().split(' ');
-    const landX = parseInt(inputs[0]);
-    const landY = parseInt(inputs[1]);
-
-    if (landY === prevY) {
-        flatX1 = prevX;
-        flatX2 = landX;
-        flatY = landY;
-    }
-    prevX = landX;
-    prevY = landY;
+    const p = readline().split(' ').map(Number);
+    pts.push(p);
 }
 
+let flatX1 = 0, flatX2 = 0, flatY = 0;
+for (let i = 1; i < surfaceN; i++) {
+    if (pts[i][1] === pts[i - 1][1] && pts[i][0] - pts[i - 1][0] > flatX2 - flatX1) {
+        flatX1 = pts[i - 1][0];
+        flatX2 = pts[i][0];
+        flatY = pts[i][1];
+    }
+}
+
+function groundMax(xa, xb) {
+    const lo = Math.min(xa, xb), hi = Math.max(xa, xb);
+    let m = 0;
+    for (let i = 1; i < surfaceN; i++) {
+        const [x1, y1] = pts[i - 1], [x2, y2] = pts[i];
+        if (x2 < lo || x1 > hi) continue;
+        const a = Math.max(lo, x1), b = Math.min(hi, x2);
+        const ya = y1 + (y2 - y1) * (a - x1) / (x2 - x1);
+        const yb = y1 + (y2 - y1) * (b - x1) / (x2 - x1);
+        m = Math.max(m, ya, yb);
+    }
+    return m;
+}
+
+const G = 3.711;
+const ZONE_MARGIN = 150;
+const CLEARANCE = 150;
+const MAX_HSPEED = 75;
+const BRAKE_ACC = 1.1;
+
 while (true) {
-    var inputs = readline().split(' ');
-    const X = parseInt(inputs[0]);
-    const Y = parseInt(inputs[1]);
-    const hSpeed = parseInt(inputs[2]);
-    const vSpeed = parseInt(inputs[3]);
-    const fuel = parseInt(inputs[4]);
-    const rotate = parseInt(inputs[5]);
-    const power = parseInt(inputs[6]);
+    const [X, Y, hSpeed, vSpeed, fuel, rotate, power] = readline().split(' ').map(Number);
 
-    let targetAngle = 0;
-    let targetPower = 0;
+    const targetX = Math.max(flatX1 + ZONE_MARGIN, Math.min(flatX2 - ZONE_MARGIN, X));
+    const dx = targetX - X;
+    const overZone = X >= flatX1 + 50 && X <= flatX2 - 50;
+    const height = Y - flatY;
 
-    const isOverZone = (X >= flatX1 && X <= flatX2);
+    const targetHSpeed = Math.sign(dx)  *Math.min(MAX_HSPEED, Math.sqrt(2*  BRAKE_ACC * Math.abs(dx)));
+    let angle = (hSpeed - targetHSpeed) * 1.5;
 
-    if (!isOverZone) {
-        let targetHSpeed = (X < flatX1) ? 35 : -35;
+    const floorAlt = overZone
+        ? flatY
+        : Math.max(flatY, groundMax(X, targetX)) + CLEARANCE;
+    const h = Math.max(0, Y - floorAlt);
 
-        targetAngle = Math.round((hSpeed - targetHSpeed) * 1.5);
-        targetAngle = Math.max(-45, Math.min(45, targetAngle));
+    const minVSpeed = overZone
+        ? -Math.min(55, Math.sqrt(36  *36 + 2*  0.2 * h))
+        : -Math.sqrt(2  *0.15*  h);
 
-        if (vSpeed < -20) {
-            targetAngle = 0;
-        }
+    let maxAngle;
+    if (vSpeed < minVSpeed + 2) maxAngle = 12;
+    else if (vSpeed < minVSpeed + 8) maxAngle = 21;
+    else maxAngle = 45;
+    angle = Math.max(-maxAngle, Math.min(maxAngle, Math.round(angle)));
 
-        if (vSpeed < -15 || Math.abs(targetAngle) > 20) {
-            targetPower = 4;
-        } else {
-            targetPower = 3;
-        }
-    }
-    else {
-        targetAngle = Math.round(hSpeed * 2);
-        targetAngle = Math.max(-45, Math.min(45, targetAngle));
+    let targetPower;
+    if (vSpeed < minVSpeed + 8) targetPower = 4;
+    else if (Math.abs(angle) > 10) targetPower = 4;
+    else targetPower = vSpeed < minVSpeed + 14 ? 3 : 0;
 
-        if (vSpeed <= -35 || Math.abs(hSpeed) > 15) {
-            targetPower = 4;
-        } else {
-            targetPower = 3;
-        }
+    if (overZone && height < 120 + 3 * Math.abs(vSpeed)) {
+        angle = 0;
+        targetPower = vSpeed < -30 ? 4 : 3;
     }
 
-    console.log(targetAngle + ' ' + targetPower);
+    console.log(angle + ' ' + targetPower);
 }
