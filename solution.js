@@ -33,20 +33,22 @@ while (true) {
     const isOverZone = (X >= flatX1 && X <= flatX2);
 
     if (!isOverZone) {
-
-        let targetHSpeed = (X < flatX1) ? 40 : -40;
+        let targetHSpeed = (X < flatX1) ? 35 : -35;
 
         targetAngle = Math.round((hSpeed - targetHSpeed) * 1.5);
         targetAngle = Math.max(-45, Math.min(45, targetAngle));
 
-        if (vSpeed < -25 || Math.abs(targetAngle) > 20) {
+        if (vSpeed < -20) {
+            targetAngle = 0;
+        }
+
+        if (vSpeed < -15 || Math.abs(targetAngle) > 20) {
             targetPower = 4;
         } else {
             targetPower = 3;
         }
     }
     else {
-
         targetAngle = Math.round(hSpeed * 2);
         targetAngle = Math.max(-45, Math.min(45, targetAngle));
 
